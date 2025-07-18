@@ -12,12 +12,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.LayoutRes
+import androidx.viewbinding.ViewBinding
 import com.kennyc.multistateview.R
 
-class MultiStateView
-@JvmOverloads constructor(context: Context,
-                          attrs: AttributeSet? = null,
-                          defStyle: Int = 0) : FrameLayout(context, attrs, defStyle) {
+class MultiStateView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyle: Int = 0,
+) : FrameLayout(context, attrs, defStyle) {
 
     enum class ViewState {
         CONTENT,
@@ -27,12 +29,17 @@ class MultiStateView
     }
 
     private var contentView: View? = null
+    // Private mutable backing field
+    private var contentViewBinding: ViewBinding? = null
 
     private var loadingView: View? = null
+    private var loadingViewBinding: ViewBinding? = null
 
     private var errorView: View? = null
+    private var errorViewBinding: ViewBinding? = null
 
     private var emptyView: View? = null
+    private var emptyViewBinding: ViewBinding? = null
 
     var listener: StateListener? = null
 
@@ -80,7 +87,10 @@ class MultiStateView
             VIEW_STATE_LOADING -> ViewState.LOADING
             else -> ViewState.CONTENT
         }
-        animateLayoutChanges = a.getBoolean(R.styleable.MultiStateView_msv_animateViewChanges, false)
+        animateLayoutChanges = a.getBoolean(
+            R.styleable.MultiStateView_msv_animateViewChanges,
+            false,
+        )
         a.recycle()
     }
 
@@ -98,6 +108,49 @@ class MultiStateView
             ViewState.ERROR -> errorView
         }
     }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <VB : ViewBinding> getViewBinding(state: ViewState, bindingClass: Class<VB>): VB? {
+        val view = getView(state) ?: return null
+        return when (state) {
+            ViewState.CONTENT -> {
+                if (contentViewBinding == null) {
+                    contentViewBinding = bindViewBinding(bindingClass, view)
+                }
+                return contentViewBinding as? VB
+            }
+
+            ViewState.LOADING -> {
+                if (loadingViewBinding == null) {
+                    loadingViewBinding = bindViewBinding(bindingClass, view)
+                }
+                return contentViewBinding as? VB
+            }
+
+            ViewState.ERROR -> {
+                if (errorViewBinding == null) {
+                    errorViewBinding = bindViewBinding(bindingClass, view)
+                }
+                return errorViewBinding as? VB
+            }
+
+            ViewState.EMPTY -> {
+                if (emptyViewBinding == null) {
+                    emptyViewBinding = bindViewBinding(bindingClass, view)
+                }
+                return emptyViewBinding as? VB
+            }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : ViewBinding> bindViewBinding(
+        bindingClass: Class<T>,
+        view: View
+    ): T? = runCatching {
+        val bindMethod = bindingClass.getMethod("bind", View::class.java)
+        bindMethod.invoke(null, view) as T
+    }.getOrNull()
 
     /**
      * Sets the view for the given view state
@@ -143,7 +196,11 @@ class MultiStateView
      * @param state         The [com.kennyc.view.MultiStateView.ViewState] to set
      * @param switchToState If the [com.kennyc.view.MultiStateView.ViewState] should be switched to
      */
-    fun setViewForState(@LayoutRes layoutRes: Int, state: ViewState, switchToState: Boolean = false) {
+    fun setViewForState(
+        @LayoutRes layoutRes: Int,
+        state: ViewState,
+        switchToState: Boolean = false
+    ) {
         val view = LayoutInflater.from(context).inflate(layoutRes, this, false)
         setViewForState(view, state, switchToState)
     }
@@ -207,7 +264,12 @@ class MultiStateView
         return super.addViewInLayout(child, index, params)
     }
 
-    override fun addViewInLayout(child: View, index: Int, params: ViewGroup.LayoutParams, preventRequestLayout: Boolean): Boolean {
+    override fun addViewInLayout(
+        child: View,
+        index: Int,
+        params: ViewGroup.LayoutParams,
+        preventRequestLayout: Boolean
+    ): Boolean {
         if (isValidContentView(child)) contentView = child
         return super.addViewInLayout(child, index, params, preventRequestLayout)
     }
@@ -309,7 +371,8 @@ class MultiStateView
                     previousView.visibility = View.GONE
                     val currentView = requireNotNull(getView(viewState))
                     currentView.visibility = View.VISIBLE
-                    ObjectAnimator.ofFloat(currentView, "alpha", 0.0f, 1.0f).setDuration(250L).start()
+                    ObjectAnimator.ofFloat(currentView, "alpha", 0.0f, 1.0f).setDuration(250L)
+                        .start()
                 }
             })
         }.start()

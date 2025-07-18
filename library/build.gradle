@@ -10,12 +10,15 @@ android {
         versionName "2.2.0"
     }
 
+    buildFeatures {
+        viewBinding true
+    }
+
     lintOptions {
         abortOnError false
     }
 
     dependencies {
         implementation 'androidx.annotation:annotation:1.1.0'
-        implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     }
 }
